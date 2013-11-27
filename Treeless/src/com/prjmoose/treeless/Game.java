@@ -1,17 +1,21 @@
 package com.prjmoose.treeless;
 
+import java.util.ArrayList;
+
+import com.prjmoose.treeless.entities.Entity;
+
 public class Game {
 	// World
 	private long startTime;
 
 	private Map map;
-	//private ArrayList<Entity> entities;
+	private ArrayList<Entity> entities;
 
 	public Game() {
 		// Init world
 		startTime = System.currentTimeMillis() + 10000;
 		
-		//map = new Map(this, "flatland");
+		map = new Map("flatland");
 		//entities = new ArrayList<Entity>();
 		
 		//entities.add(new Player("svc"));
@@ -22,10 +26,13 @@ public class Game {
 
 	public void update(long deltaTime) {
 		
-		// TODO Update entities and check collisions and stuff
 	}
 
 	public long getStartTime() {
 		return startTime;
+	}
+
+	public Map getMap() {
+		return map;
 	}
 }

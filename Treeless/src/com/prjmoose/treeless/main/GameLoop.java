@@ -16,18 +16,17 @@ public class GameLoop implements Runnable {
 	// Remote World Link
 	//private ServerInterface remoteWorldLink;
 
-	// Local Player Interface
-	private PlayerInterfacePanel cam;
-
 	public GameLoop(Game localWorld) {
-		super();
-
 		this.localWorld = localWorld;
 		
 		updateRate = DEFAULT_UPDATE_RATE;
 	}
 	
     public Thread start() {
+    	if(thisThread != null) {
+    		return thisThread;
+    	}
+
     	thisThread = new Thread(this);
     	thisThread.start();
     	
@@ -42,8 +41,7 @@ public class GameLoop implements Runnable {
 		long endTime;
 		long totalTime;
 		long waitTime;
-		
-		int updateCount = 0;
+		long overTime = 0;
 		
 		startTime = System.nanoTime();
 
@@ -63,21 +61,6 @@ public class GameLoop implements Runnable {
 					// Update localWorld
 					localWorld.update(deltaTime);
 				}
-				
-				if (cam != null) {
-					updateCount++;
-	
-					cam.update(deltaTime);
-	
-					// Time to actually draw a frame
-					if(cam.getFPS() > updateRate || updateCount % (updateRate / cam.getFPS()) == 0) {
-	
-						// Reset counter
-						updateCount = 0;
-					
-						cam.render();
-					}
-				}
 	
 				// End loop timer
 				endTime = System.nanoTime();
@@ -88,11 +71,13 @@ public class GameLoop implements Runnable {
 	
 				// Protect from negative waitTimes
 				if(waitTime < 0) {
-					System.out.printf("GameLoop took %d ms (+%d ms).\n", totalTime, -waitTime);
+					overTime += -waitTime;
+					System.out.printf("GameLoop took %d ms (%d ms over target). Total over time: %d ms\n", totalTime, -waitTime, overTime);
 					continue;
+				} else if(waitTime > 0 && overTime > 0) {
+					waitTime--;
+					overTime--;
 				}
-
-				//System.out.printf("GameLoop took %d ms.\n", totalTime);
 
 				// Wait for the rest of the update period
 				try {
@@ -117,13 +102,5 @@ public class GameLoop implements Runnable {
 
 	public int getUpdateRate() {
 		return updateRate;
-	}
-
-	public PlayerInterfacePanel getPlayerInterfacePanel() {
-		if(cam == null) {
-			cam = new PlayerInterfacePanel(localWorld);
-		}
-
-		return cam;
 	}
 }

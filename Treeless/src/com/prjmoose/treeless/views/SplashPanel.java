@@ -7,6 +7,7 @@ import java.awt.GridBagLayout;
 import javax.swing.JButton;
 
 import java.awt.CardLayout;
+import java.awt.Container;
 import java.awt.GridBagConstraints;
 import java.awt.Insets;
 
@@ -49,26 +50,26 @@ public class SplashPanel extends JPanel {
 			putValue(NAME, "Start");
 			putValue(SHORT_DESCRIPTION, "Start the game");
 		}
+
 		public void actionPerformed(ActionEvent e) {
 			// Create game
 			Game localWorld = new Game();
 			
 			// Create a game thread and start it
 			GameLoop gl = new GameLoop(localWorld);
-			// Start rendering
 			Thread glt = gl.start();
 			
 			// Notify main thread that we now have a live game
 			Main.setGameLoop(gl);
 			
 			// Create a local player
-			PlayerInterfacePanel cam = gl.getPlayerInterfacePanel();
+			PlayerInterfacePanel cam = new PlayerInterfacePanel(localWorld);
+			Thread camt = cam.start();
 
 			// Switch to game camera
 			getParent().add(cam, "Game");
-			
 			((CardLayout) getParent().getLayout()).show(getParent(), "Game");
-			
+
 		}
 	}
 }

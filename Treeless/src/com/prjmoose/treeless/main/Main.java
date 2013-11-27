@@ -1,6 +1,7 @@
 package com.prjmoose.treeless.main;
 
 import java.awt.EventQueue;
+import java.awt.GraphicsEnvironment;
 
 import javax.swing.JFrame;
 
@@ -8,6 +9,7 @@ import java.awt.CardLayout;
 import java.io.IOException;
 
 import com.prjmoose.treeless.views.SplashPanel;
+
 import javax.swing.JPanel;
 import javax.swing.JButton;
 
@@ -105,13 +107,17 @@ public class Main {
 	 * Initialize the contents of the frame.
 	 */
 	private void initialize() {
+		int screenWidth = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDisplayMode().getWidth();
+		int screenHeight = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDisplayMode().getHeight();
+		
 		frame = new JFrame();
-		frame.setBounds(100, 100, 450, 300);
+		//frame.setBounds(100, 100, 450, 300);
+		frame.setBounds((screenWidth - 1024) / 2, (screenHeight - 768) / 2, 1024 + 8, 768 + 27);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		frame.getContentPane().setLayout(new CardLayout(0, 0));
+		frame.setLayout(new CardLayout(0, 0));
 		
 		SplashPanel splashPanel = new SplashPanel();
-		frame.getContentPane().add(splashPanel, "name_650037754452961");
+		frame.add(splashPanel, "name_650037754452961");
 	}
 
 }
