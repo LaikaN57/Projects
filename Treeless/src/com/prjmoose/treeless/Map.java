@@ -34,7 +34,7 @@ public class Map {
 		public Tile() {
 			type = TYPE_NORMAL;
 
-			if((Math.random() * 100) < 90) {
+			if((Math.random() * 100) < 95) {
 				flags = (short) (FLAG_ENABLED | FLAG_WALKABLE | FLAG_FLYABLE);
 				spriteIndex = 0;
 			} else {
@@ -76,8 +76,8 @@ public class Map {
 		// read tiles from file
 		
 		// for now just draw a static map
-		width = 384;
-		height = 384;
+		width = 256;
+		height = 192;
 		tileSize = 16;
 
 		map = new Tile[height][width];
@@ -87,7 +87,7 @@ public class Map {
 			}
 		}
 		
-		spriteSheetPath = "basic16";
+		spriteSheetPath = "basic" + tileSize;
 	}
 
 	public int getWidth() {

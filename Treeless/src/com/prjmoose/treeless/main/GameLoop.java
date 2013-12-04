@@ -57,7 +57,8 @@ public class GameLoop implements Runnable {
 //					// force update on any new info from remoteWorld
 //				}
 
-				if(localWorld.getStartTime() >= startTime) {
+				if(localWorld.getStartTime() < System.currentTimeMillis()) {
+					
 					// Update localWorld
 					localWorld.update(deltaTime);
 				}

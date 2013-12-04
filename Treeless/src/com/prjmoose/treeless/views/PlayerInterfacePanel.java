@@ -1,7 +1,9 @@
 package com.prjmoose.treeless.views;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.event.KeyEvent;
@@ -14,6 +16,9 @@ import java.awt.image.BufferedImage;
 import javax.swing.JPanel;
 
 import com.prjmoose.treeless.Game;
+import com.prjmoose.treeless.Point3D;
+import com.prjmoose.treeless.entities.Entity;
+import com.prjmoose.treeless.entities.Player;
 
 public class PlayerInterfacePanel extends JPanel implements Runnable, KeyListener, MouseListener, MouseMotionListener {
 	public static final int DEFAULT_WIDTH = 800;
@@ -21,7 +26,7 @@ public class PlayerInterfacePanel extends JPanel implements Runnable, KeyListene
 	public static final int DEFUALT_FPS = 30;
 
 	public static final int SCROLL_MARGIN = 50;
-	public static final double SCROLL_VELOCITY = 5;
+	public static final double SCROLL_VELOCITY = 20;
 	
 	public static final int VISIBLE_LIGHT_LEVEL = 0;
 	public static final int LOW_LIGHT_LEVEL = 127;
@@ -44,8 +49,14 @@ public class PlayerInterfacePanel extends JPanel implements Runnable, KeyListene
 	// loaded graphics
 	private BufferedImage[] mapSprites;
 	private BufferedImage miniMapSprite;
+	
+	private BufferedImage cachedMap;
 
 	private long lastDeltaTime;
+	
+	private Entity selectedEntity;
+	
+	private boolean debugHudEnabled;
 
 	/**
 	 * Create the panel.
@@ -58,6 +69,7 @@ public class PlayerInterfacePanel extends JPanel implements Runnable, KeyListene
 		location = new Point(0, 0);
 		fps = DEFUALT_FPS;
 		scrolling = false;
+		debugHudEnabled = true;
 
 		setIgnoreRepaint(true);
 		setPreferredSize(new Dimension(DEFAULT_WIDTH, DEFAULT_HEIGHT));
@@ -116,24 +128,43 @@ public class PlayerInterfacePanel extends JPanel implements Runnable, KeyListene
 						double y = location.getY() + Math.sin(scrollDirection) * SCROLL_VELOCITY;
 						
 						location.setLocation(x, y);
+						
+						cachedMap = null;
 					}
 					
 					// fix x if map is smaller or if map went off edge
 					if(localWorld.getMap().getWidth() * localWorld.getMap().getTileSize() < getWidth()) {
 						location.x = -(getWidth() - localWorld.getMap().getWidth() * localWorld.getMap().getTileSize()) / 2;
+						
+						cachedMap = null;
 					} else if(location.x < 0) {
 						location.x = 0;
+						
+						cachedMap = null;
 					} else if(location.x + getWidth() > localWorld.getMap().getWidth() * localWorld.getMap().getTileSize()) {
 						location.x = localWorld.getMap().getWidth() * localWorld.getMap().getTileSize() - getWidth();
+						
+						cachedMap = null;
 					}
 
 					// fix y if map is smaller or if map went off edge
 					if(localWorld.getMap().getHeight() * localWorld.getMap().getTileSize() < getHeight()) {
 						location.y = -(getHeight() - localWorld.getMap().getHeight() * localWorld.getMap().getTileSize()) / 2;
+						
+						cachedMap = null;
 					} else if(location.y < 0) {
 						location.y = 0;
+						
+						cachedMap = null;
 					} else if(location.y + getHeight() > localWorld.getMap().getHeight() * localWorld.getMap().getTileSize()) {
 						location.y = localWorld.getMap().getHeight() * localWorld.getMap().getTileSize() - getHeight();
+						
+						cachedMap = null;
+					}
+					
+					// clear map cache is size changed
+					if((cachedMap != null) && (cachedMap.getWidth() != getWidth() || cachedMap.getHeight() != getHeight())) {
+						cachedMap = null;
 					}
 
 					render();
@@ -187,10 +218,17 @@ public class PlayerInterfacePanel extends JPanel implements Runnable, KeyListene
 		g.fillRect(0, 0, getWidth(), getHeight());
 		
 		// draw map
-		renderMap(g);
-		// TODO save map so that we dont have to redraw
+		// render a new map
+		if(cachedMap == null) {
+			cachedMap = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_ARGB);
+			renderMap(g);
+		}
+		
+		// draw the cached map
+		g.drawImage(cachedMap, 0, 0, null);
 		
 		// draw entities by depth
+		renderEntities(g);
 		
 		// render sight
 		
@@ -198,7 +236,9 @@ public class PlayerInterfacePanel extends JPanel implements Runnable, KeyListene
 		renderPlayerHud(g);
 
 		// draw debug hud
-		renderDebugHud(g);
+		if(debugHudEnabled) {
+			renderDebugHud(g);
+		}
 		
 		// Clean up frame buffer graphics painter
 		g.dispose();
@@ -214,54 +254,103 @@ public class PlayerInterfacePanel extends JPanel implements Runnable, KeyListene
 	}
 	
 	public void renderMap(Graphics2D g) {
+		Graphics2D mapPainter = (Graphics2D) cachedMap.getGraphics();
+
 		if(mapSprites != null) {
 			int xStart = location.x / localWorld.getMap().getTileSize();
 			int yStart = location.y / localWorld.getMap().getTileSize();
 			int xEnd = Math.min((location.x + getWidth()) / localWorld.getMap().getTileSize() + 1, localWorld.getMap().getWidth());
 			int yEnd = Math.min((location.y + getHeight()) / localWorld.getMap().getTileSize() + 1, localWorld.getMap().getHeight());
 			
+			// TODO check for map smaller than view port
+			
 			for(int y = yStart; y < yEnd; y++) {
 				for(int x = xStart; x < xEnd; x++) {
-					g.drawImage(mapSprites[localWorld.getMap().getTileAt(x, y).getSpriteIndex()],
+					mapPainter.drawImage(mapSprites[localWorld.getMap().getTileAt(x, y).getSpriteIndex()],
 							x * localWorld.getMap().getTileSize() - location.x,
 							y * localWorld.getMap().getTileSize() - location.y,
 							null);
 				}
 			}
 		} else {
-			g.setColor(Color.MAGENTA);
-			g.fillRect(0, 0, getWidth(), getHeight());
+			mapPainter.setColor(Color.MAGENTA);
+			mapPainter.fillRect(0, 0, getWidth(), getHeight());
 		}
+		
+		mapPainter.dispose();
 	}
 	
 	public void renderEntities(Graphics2D g) {
-		//for(Entity e : localWorld.getEntites()) {
-		//	if(e instanceof Player) {
-				// This is how to render a player
-		//	}
-		//}
+		for(Entity e : localWorld.getEntites()) {
+			// TODO check if entity is even on screen
+			
+			if(e instanceof Player) {
+				// draw selection box
+				if(e.equals(selectedEntity)) {
+					g.setColor(Color.BLUE);
+					g.setStroke(new BasicStroke(3));
+					g.drawOval(
+							(int) (e.getLocation().getX() - e.getRadius() - location.x),
+							(int) (e.getLocation().getY() - e.getRadius() - location.y),
+							(int) (e.getRadius() * 2), (int) (e.getRadius() * 2 * 0.9));
+					// TODO fix this math
+	
+					g.setStroke(new BasicStroke(1));	// RESET Stroke
+				}
+
+				// draw magenta box at player x y z
+				g.setColor(Color.MAGENTA);
+				g.fillRect(
+						(int) (e.getLocation().getX() - e.getRadius() - location.x),
+						(int) (e.getLocation().getY() - e.getLocation().getZ() - e.getHeight() - location.y),
+						(int) (e.getRadius() * 2), (int) (e.getHeight()));
+				
+			}
+		}
 	}
 	
 	public void renderMiniMap(Graphics2D g) {
-		// use these to scale the white box
-		int scale = Math.max(localWorld.getMap().getWidth(), localWorld.getMap().getHeight()) / 256;
-		int x = location.x / scale;
-		int y = location.y / scale;
-		int w = getWidth() / scale;
-		int h = getHeight() / scale;
-
-		int mmW = localWorld.getMap().getWidth() * localWorld.getMap().getTileSize() / scale;
-		int mmH = localWorld.getMap().getHeight() * localWorld.getMap().getTileSize() / scale;
+		// scale the map and view
+		int scale = Math.max(localWorld.getMap().getWidth() * localWorld.getMap().getTileSize(), localWorld.getMap().getHeight() * localWorld.getMap().getTileSize()) / MINI_MAP_SIZE;
 		
+		// map
+		int mapW = localWorld.getMap().getWidth() * localWorld.getMap().getTileSize() / scale;
+		int mapH = localWorld.getMap().getHeight() * localWorld.getMap().getTileSize() / scale;
+		int mapX = (MINI_MAP_SIZE - mapW) / 2;
+		int mapY = (MINI_MAP_SIZE - mapH) / 2;
+		
+		// view
+		int viewX = location.x / scale;
+		int viewY = location.y / scale;
+		int viewW = getWidth() / scale;
+		int viewH = getHeight() / scale;
+		
+		// draw minimap
 		g.setColor(Color.MAGENTA);
-		g.fillRect(getWidth() - 256, getHeight() - 256, 256, 256);
+		g.fillRect(getWidth() - MINI_MAP_SIZE, getHeight() - MINI_MAP_SIZE, MINI_MAP_SIZE, MINI_MAP_SIZE);
+		
+		// draw total map area
 		g.setColor(Color.BLACK);
-		//g.fillRect(getWidth() - 256, getHeight() - 256, mmW, mmH);
+		g.fillRect(getWidth() - MINI_MAP_SIZE + mapX, getHeight() - MINI_MAP_SIZE + mapY, mapW, mapH);
+		
+		// draw viewable area
 		g.setColor(Color.WHITE);
-		//g.drawRect(getWidth() - 256 + x, getHeight() - 256 + y, w, h);
+		g.setStroke(new BasicStroke(3));
+		g.drawRect(getWidth() - MINI_MAP_SIZE + 1 + mapX + viewX, getHeight() - MINI_MAP_SIZE + 1 + mapY + viewY, viewW - 3, viewH - 3); // TODO Check stroke
+		
+		g.setStroke(new BasicStroke(1));
 	}
 	
 	public void renderPlayerHud(Graphics2D g) {
+		if(localWorld.getStartTime() >= System.currentTimeMillis()) {
+			g.setColor(Color.RED);
+			g.setFont(new Font(null, Font.BOLD, 72));
+			g.drawString("PAUSED", (getWidth() - 300) / 2, (getHeight()) / 2);
+			
+			g.setFont(new Font(null));
+			// TODO fix reset
+		}
+		
 		renderMiniMap(g);
 	}
 
@@ -291,15 +380,15 @@ public class PlayerInterfacePanel extends JPanel implements Runnable, KeyListene
 		
 		// draw info
 		g.setColor(new Color(0, 0, 0, 128));
-		g.fillRect(0, 0, 250, 100);
+		g.fillRect(0, 0, getWidth(), 100);
 		
 		g.setColor(Color.white);
 		g.drawString("Window size: " + getWidth() + " x " + getHeight() + " @ " + getFPS(), 2, 15);
 		g.drawString("Cursor location: (" + location.getX() + ", " + location.getY() + ")", 2, 31);
 		g.drawString("Map size (tiles): " + localWorld.getMap().getWidth() + " x " + localWorld.getMap().getHeight() + " @ " + localWorld.getMap().getTileSize(), 2, 47);
 		g.drawString("Map size (pixels): " + localWorld.getMap().getWidth() * localWorld.getMap().getTileSize() + " x " + localWorld.getMap().getHeight() * localWorld.getMap().getTileSize(), 2, 63);
-		g.drawString("Time delta: " + lastDeltaTime / 1000000, 2, 79);
-		g.drawString("Mem: " + (double) Runtime.getRuntime().totalMemory() / 1048576 + " MB", 2, 95);
+		g.drawString("Time delta: " + lastDeltaTime / 1000000, 2, 79);		
+		g.drawString("Mem: " + (long) Math.floor(Runtime.getRuntime().totalMemory() / 1024) + " KB", 2, 95);
 	}
 	
 	public void setScrollDirection(double newScrollDirection) {
@@ -334,12 +423,24 @@ public class PlayerInterfacePanel extends JPanel implements Runnable, KeyListene
 
 	@Override
 	public void mousePressed(MouseEvent e) {
+		System.out.println(e);
+
 		switch(e.getButton()) {
 			// Select any visible element that is selectable
 			case MouseEvent.BUTTON1:
+				if(e.getX() > getWidth() - 256 &&
+						e.getX() < getWidth() &&
+						e.getY() > getHeight() - 256 &&
+						e.getY() < getHeight()) {
+					// Minimap hit, move mini map to location
+					// calculate center
+					// move map
+					// TODO create minimap move
+				}
 				break;
 			// Attack any visible element that is attackable except for self
 			case MouseEvent.BUTTON3:
+				((Player) localWorld.getEntites().get(0)).setTargetLocation(new Point3D(e.getX() + location.getX(), e.getY() + location.getY(), 0));
 				break;
 			default:
 				break;
@@ -349,8 +450,16 @@ public class PlayerInterfacePanel extends JPanel implements Runnable, KeyListene
 
 	@Override
 	public void keyPressed(KeyEvent e) {
-		// TODO Auto-generated method stub
+		System.out.println(e);
 		
+		switch(e.getKeyCode()) {
+			// Enable/Disable DebugHud
+			case KeyEvent.VK_BACK_QUOTE:
+				debugHudEnabled = !debugHudEnabled;
+				break;
+			default:
+				break;
+		}
 	}
 
 	@Override
