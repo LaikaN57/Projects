@@ -19,6 +19,7 @@ import com.prjmoose.treeless.Game;
 import com.prjmoose.treeless.Point3D;
 import com.prjmoose.treeless.entities.Entity;
 import com.prjmoose.treeless.entities.Player;
+import com.prjmoose.treeless.main.Utils;
 
 public class PlayerInterfacePanel extends JPanel implements Runnable, KeyListener, MouseListener, MouseMotionListener {
 	public static final int DEFAULT_WIDTH = 800;
@@ -325,7 +326,7 @@ public class PlayerInterfacePanel extends JPanel implements Runnable, KeyListene
 		int viewW = getWidth() / scale;
 		int viewH = getHeight() / scale;
 		
-		// draw minimap
+		// draw minimap frame
 		g.setColor(Color.MAGENTA);
 		g.fillRect(getWidth() - MINI_MAP_SIZE, getHeight() - MINI_MAP_SIZE, MINI_MAP_SIZE, MINI_MAP_SIZE);
 		
@@ -423,19 +424,41 @@ public class PlayerInterfacePanel extends JPanel implements Runnable, KeyListene
 
 	@Override
 	public void mousePressed(MouseEvent e) {
-		System.out.println(e);
+		//System.out.println(e);
 
 		switch(e.getButton()) {
 			// Select any visible element that is selectable
 			case MouseEvent.BUTTON1:
-				if(e.getX() > getWidth() - 256 &&
+				// if hit mini map bounding box
+				if(e.getX() >= getWidth() - MINI_MAP_SIZE &&
 						e.getX() < getWidth() &&
-						e.getY() > getHeight() - 256 &&
+						e.getY() >= getHeight() - MINI_MAP_SIZE &&
 						e.getY() < getHeight()) {
-					// Minimap hit, move mini map to location
-					// calculate center
-					// move map
-					// TODO create minimap move
+					
+					// scale the map and view
+					int scale = Math.max(localWorld.getMap().getWidth() * localWorld.getMap().getTileSize(), localWorld.getMap().getHeight() * localWorld.getMap().getTileSize()) / MINI_MAP_SIZE;
+
+					// map
+					int mapW = localWorld.getMap().getWidth() * localWorld.getMap().getTileSize() / scale;
+					int mapH = localWorld.getMap().getHeight() * localWorld.getMap().getTileSize() / scale;
+					int mapX = (MINI_MAP_SIZE - mapW) / 2;
+					int mapY = (MINI_MAP_SIZE - mapH) / 2;
+					
+					// if hit actual mini map (not just the map frame)
+					if(e.getX() >= getWidth() - MINI_MAP_SIZE + mapX &&
+							e.getX() < getWidth() - MINI_MAP_SIZE + mapX + mapW &&
+							e.getY() >= getHeight() - MINI_MAP_SIZE + mapY &&
+							e.getY() < getHeight() - MINI_MAP_SIZE + mapY + mapH) {
+
+						int hitX = e.getX() - (getWidth() - MINI_MAP_SIZE + mapX);
+						int hitY = e.getY() - (getHeight() - MINI_MAP_SIZE + mapY);
+
+						// FIXME Screen flicker when clicking in movement region.
+						location.setLocation(
+								Utils.limit(hitX * scale - getWidth()/2, 0, localWorld.getMap().getWidth() * localWorld.getMap().getTileSize() - getWidth()),
+								Utils.limit(hitY * scale - getHeight()/2, 0, localWorld.getMap().getHeight() * localWorld.getMap().getTileSize() - getHeight()));
+						cachedMap = null;
+					}
 				}
 				break;
 			// Attack any visible element that is attackable except for self
